@@ -3,13 +3,12 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<meta name="color-scheme" content="light" />
 <title>Michael Braha — I make things</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400;1,500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="site.css?v=3" />
-<script src="image-slot.js" defer></script>
+<link rel="stylesheet" href="site.css" />
+<script src="image-slot.js"></script>
 </head>
 <body>
 <div class="grain"></div>
@@ -348,24 +347,7 @@
 /* ---- reveal observer ---- */
 (function(){
   const io=new IntersectionObserver((es)=>{es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target);}});},{threshold:.16,rootMargin:'0px 0px -8% 0px'});
-  const els=document.querySelectorAll('.reveal');
-  els.forEach(el=>io.observe(el));
-  /* scroll-based fallback: runs on every scroll so reveals land even if IO misfires
-     (observed on desktop Chrome when overflow-x is set on body) */
-  function revealVisible(){
-    document.querySelectorAll('.reveal:not(.in)').forEach(el=>{
-      const r=el.getBoundingClientRect();
-      if(r.top<innerHeight*0.92&&r.bottom>0)el.classList.add('in');
-    });
-  }
-  addEventListener('scroll',revealVisible,{passive:true});
-  document.addEventListener('scroll',revealVisible,{passive:true});
-  window.__revealVisible=revealVisible;
-  /* force-reveal anything already in view after first paint — both paths,
-     since rAF can be suspended on some desktop Chrome/Edge setups */
-  requestAnimationFrame(()=>requestAnimationFrame(()=>{ revealVisible(); }));
-  setTimeout(revealVisible,120);
-  setTimeout(revealVisible,600);
+  document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
 })();
 
 /* ---- MacBook keyboard (generated, real QWERTY) ---- */
@@ -473,15 +455,9 @@ function compute(){
 }
 const lidEl=laptop.querySelector('.lid');
 const glareEl=laptop.querySelector('.glare');
-let running=false,lastFrame=0;
+let running=false;
 function wake(){ if(!running){ running=true; requestAnimationFrame(raf); } }
 function raf(){
-  lastFrame=Date.now();
-  if(frame()){ running=false; return; }
-  requestAnimationFrame(raf);
-}
-/* one animation step; returns true once everything has settled */
-function frame(){
   if(first){cScale=tScale;cDy=tDy;cDark=tDark;cFade=tFade;cKrot=tKrot;cKop=tKop;cBloom=tBloom;first=false;}
   cScale=lerp(cScale,tScale,0.14);
   cDy=lerp(cDy,tDy,0.14);
@@ -512,49 +488,16 @@ function frame(){
   const darkNow = dzTop < innerHeight*0.5 || cDark>0.55;
   chrome.style.setProperty('--nav', darkNow?'rgba(242,236,225,.82)':'#6f6757');
   /* sleep once everything has settled — no perpetual forced-layout loop */
-  return Math.abs(cScale-tScale)<0.0008 && Math.abs(cDy-tDy)<0.08 &&
+  const rest = Math.abs(cScale-tScale)<0.0008 && Math.abs(cDy-tDy)<0.08 &&
     Math.abs(cDark-tDark)<0.0015 && Math.abs(cFade-tFade)<0.0015 &&
     Math.abs(cKrot-tKrot)<0.04 && Math.abs(cKop-tKop)<0.004 &&
     Math.abs(cBloom-tBloom)<0.008;
+  if(rest){ running=false; return; }
+  requestAnimationFrame(raf);
 }
-/* Chrome: body{overflow-x:hidden} can shift scroll container off window */
-const _onScroll=()=>{compute();wake();};
-addEventListener('scroll',_onScroll,{passive:true});
-document.addEventListener('scroll',_onScroll,{passive:true});
+addEventListener('scroll',()=>{compute();wake();},{passive:true});
 addEventListener('resize',()=>{compute();wake();});
 compute();wake();
-
-/* Watchdog: desktop Chrome/Edge can throttle rAF (InPrivate, battery saver,
-   renderer throttling) and drop scroll events. Two-speed interval:
-   • 16ms (~60 fps) when the animation is actively running — matches rAF rate
-     so the user sees smooth motion even when rAF is suppressed.
-   • 80ms when idle — cheap scroll polling, no wasted work. */
-(function(){
-  const se=()=>document.scrollingElement||document.documentElement;
-  let last=-1, fast=false, fastTimer=null, slowTimer=null;
-
-  function tick(){
-    const y=se().scrollTop;
-    if(y!==last){
-      last=y;
-      compute();wake();
-      if(window.__revealVisible)window.__revealVisible();
-    }
-    /* rAF starved → step the animation manually at 16ms rate */
-    if(running && Date.now()-lastFrame>30){
-      if(frame()) running=false;
-    }
-    /* switch to fast mode while animating, slow mode when idle */
-    if(running!==fast){
-      fast=running;
-      clearInterval(fastTimer); clearInterval(slowTimer);
-      if(fast){ fastTimer=setInterval(tick,16); }
-      else    { slowTimer =setInterval(tick,80); }
-    }
-  }
-  slowTimer=setInterval(tick,80);
-})();
-
 </script>
 
 <script>
