@@ -15,6 +15,12 @@ body{
   isolation:isolate;
 }
 
+/* Never make content visibility depend on animation delivery. Edge can throttle
+   IntersectionObserver/rAF in some power or background states; the reveal still
+   slides into place when it fires, but content remains readable either way. */
+.reveal{opacity:1!important}
+.hero .reveal{opacity:1!important;transform:none}
+
 /* Chromium: clip prevents the body/pinned scene from becoming accidental scroll
    containers/compositor layers. Explicit stacking keeps Selected Work above the
    sticky laptop without promoting the entire dark section to the GPU. */
